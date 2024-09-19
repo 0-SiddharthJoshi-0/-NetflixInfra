@@ -2,27 +2,28 @@ name: Deploy Nginx Config
 
 on:
   push:
-    paths:
-      - 'nginx-config/**'  # Trigger workflow on changes to nginx-config
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout the repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Copy SSH Key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_PRIVATE_KEY }}  # Set this in GitHub Secrets
-        known_hosts: ${{ secrets.KNOWN_HOSTS }}  # Add EC2 public IP to known hosts
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Transfer Nginx Configurations to EC2
-      run: |
-        scp -o StrictHostKeyChecking=no -r nginx-config/* ec2-user@${{ secrets.EC2_PUBLIC_IP }}:/etc/nginx/conf.d/
+      - name: Copy Nginx config to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no -r nginx-config/* ubuntu@${{ secrets.EC2_HOST }}:/etc/nginx/conf.d/
 
-    - name: Restart Nginx Service on EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_PUBLIC_IP }} "sudo systemctl restart nginx"
+      - name: Restart Nginx
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} "sudo systemctl restart nginx"
