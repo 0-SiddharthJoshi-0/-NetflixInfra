@@ -19,10 +19,14 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}  # Set this in GitHub Secrets
         known_hosts: ${{ secrets.KNOWN_HOSTS }}  # Add EC2 public IP to known hosts
 
-    - name: Transfer Nginx Configurations to EC2
+    - name: Transfer Nginx Configurations to a temp directory
       run: |
-        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r nginx-config/* ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/etc/nginx/conf.d/
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r nginx-config/* ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/home/ubuntu/nginx-config/
     
+    - name: Move Nginx Configurations to /etc/nginx/conf.d/ with sudo
+      run: |
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_PUBLIC_IP }} "sudo mv /home/ubuntu/nginx-config/* /etc/nginx/conf.d/"
+
     - name: Restart Nginx Service on EC2
       run: |
         ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_PUBLIC_IP }} "sudo systemctl restart nginx"
